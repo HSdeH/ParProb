@@ -17,8 +17,7 @@
 #define chromlength numBlocks
 #define popSize 10
 
-// test for 2+ towers
-const int towers = 3;
+const int towers = 64;
 // gets set at initialize()
 int totalHeight;
 
@@ -49,7 +48,7 @@ void printFullSum(int *, double);
 double rankGen(int *);
 void halfCrossOver(int *, int *);
 int towerRand();
-double fitness(int *);
+double deviation(int *);
 
 int main(int argc, char **argv) {
   // default options
@@ -59,21 +58,22 @@ int main(int argc, char **argv) {
   readInput(argc, argv);
   initialize();
 
-  double oldDif = -1;
-  double newDif;
+  double oldDev = -1;
+  double newDev;
   int cnt = 0;
   int gen = 0;
 
   // main loop
   do {
-    // rank the individuals and get minDif
-    newDif = rankGen(ranks);
-    if (oldDif == newDif) {
+    // rank the individuals and get the lowest deviation
+    newDev = rankGen(ranks);
+    if (oldDev == newDev) {
       cnt++;
     } else {
       cnt = 0;
-      oldDif = newDif;
+      oldDev = newDev;
     }
+    // change the new generation
     for (int i = popSize / 5; i < popSize; i++) {
       mutate(generation[ranks[i]]);
     }
@@ -82,10 +82,10 @@ int main(int argc, char **argv) {
     }
     gen++;
   } while ((cnt < MAX_COUNT) &&
-           (newDif != 0));  // continue until a solution has been found or
+           (newDev != 0));  // continue until a solution has been found or
                             // nothing has been found for a while
 
-  fullPrint(options, ranks, newDif, gen, cnt);
+  fullPrint(options, ranks, newDev, gen, cnt);
   free(ranks);
   return 0;
 }
@@ -98,8 +98,7 @@ char toBase64(int n) {
 }
 // returns the deviation of a chromosome, for every doubling of towers, the max
 // deviation increases by 50%, the lower the deviation the higher the fitness
-// TODO account for rounding
-double fitness(int *chromosome) {
+double deviation(int *chromosome) {
   double optimum = (double)totalHeight / (double)towers;
   double deviation = 0.0;
   int height = 0;
@@ -153,7 +152,7 @@ double rankGen(int *ranks) {
     ranks[i] = i;
   }
   for (int i = 0; i < popSize; i++) {
-    rankedDifs[i] = fitness(generation[i]);
+    rankedDifs[i] = deviation(generation[i]);
   }
   for (int i = 0; i < popSize - 1; i++) {
     for (int j = i + 1; j < popSize; j++) {
@@ -271,7 +270,7 @@ void printFullSum(int *ranks, double deviation) {
   for (int s = 0; s < towers; s++) {
     sum = 0;
     first = 1;
-    printf("Set %c:\n", toBase64(s));
+    printf("Set %c:\t", toBase64(s));
     for (int b = 0; b < chromlength; b++) {
       if (generation[ranks[0]][b] == s) {
         if (first) {
