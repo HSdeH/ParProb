@@ -4,6 +4,7 @@
  * AKA: parprob.c
  */
 
+#include <math.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -17,12 +18,12 @@
 #define popSize 10
 
 // test for 2+ towers
-const int towers = 2;
-// gets set at initialize() 
+const int towers = 3;
+// gets set at initialize()
 int totalHeight;
 
 int blocks[numBlocks];
-bool generation[popSize][chromlength];
+int generation[popSize][chromlength];
 
 typedef struct {
   bool printChrom;
@@ -32,22 +33,23 @@ typedef struct {
   bool printGenIts;
 } Options;
 
+char toBase64(int);
 void readInput(int, char **);
-int introduce(bool *);
-int mutate(bool *);
-int crossOver(bool *, bool *);
-int heightOfTower(bool *, bool);
-int heightDif(bool *);
+void introduce(int *);
+void mutate(int *);
+void crossOver(int *, int *);
+int heightOfTower(int *, int);
+int heightDif(int *);
 void initialize();
-void fullPrint(Options, int *, int, int, int);
+void fullPrint(Options, int *, double, int, int);
 void printGen();
 void printChrom(int *);
 void printHeightSum(int *, int);
-void printFullSum(int *, int);
-int rankGen(int *);
-int halfCrossOver(bool *, bool *);
+void printFullSum(int *, double);
+double rankGen(int *);
+void halfCrossOver(int *, int *);
 int towerRand();
-int fitness(int *);
+double fitness(int *);
 
 int main(int argc, char **argv) {
   // default options
@@ -56,9 +58,9 @@ int main(int argc, char **argv) {
   srand(time(NULL));
   readInput(argc, argv);
   initialize();
-  
-  int oldDif = -1;
-  int newDif;
+
+  double oldDif = -1;
+  double newDif;
   int cnt = 0;
   int gen = 0;
 
@@ -78,21 +80,29 @@ int main(int argc, char **argv) {
     for (int i = popSize / 2; i < popSize; i++) {
       halfCrossOver(generation[ranks[i]], generation[ranks[0]]);
     }
-#ifdef DEBUG
-    printf("gen %d: %d\n", gen, newDif);
-#endif
     gen++;
-
-  } while ((cnt < MAX_COUNT) && (newDif != 0));
+  } while ((cnt < MAX_COUNT) &&
+           (newDif != 0));  // continue until a solution has been found or
+                            // nothing has been found for a while
 
   fullPrint(options, ranks, newDif, gen, cnt);
   free(ranks);
   return 0;
 }
-// returns the fitness of a chromosome, for every doubling of towers, the max deviation increases by 50%
-int fitness(int *chromosome) {
-  int optimum = totalHeight/towers;
-  int deviation = 0, height = 0;
+// implemented to make the printed chromosome better capable of handling lots of
+// towers bit too simple right now
+char toBase64(int n) {
+  char base64[] = {
+      "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ+/"};
+  return base64[n % 64];
+}
+// returns the deviation of a chromosome, for every doubling of towers, the max
+// deviation increases by 50%, the lower the deviation the higher the fitness
+// TODO account for rounding
+double fitness(int *chromosome) {
+  double optimum = (double)totalHeight / (double)towers;
+  double deviation = 0.0;
+  int height = 0;
   // find the deviation of the optimum for every tower
   for (int t = 0; t < towers; t++) {
     for (int g = 0; g < chromlength; g++) {
@@ -100,7 +110,7 @@ int fitness(int *chromosome) {
         height += blocks[g];
       }
     }
-    deviation += abs(height-optimum);
+    deviation += fabs((double)height - optimum);
     height = 0;
   }
   return deviation;
@@ -111,20 +121,21 @@ int fitness(int *chromosome) {
 int towerRand() {
   int tower = rand() / (RAND_MAX / towers);
   if (tower == towers) {
-      tower--;
+    tower--;
   }
   return tower;
 }
 // print final results
-void fullPrint(Options options, int *ranks, int minDif, int gen, int cnt) {
+void fullPrint(Options options, int *ranks, double deviation, int gen,
+               int cnt) {
   if (options.printChrom) {
     printChrom(ranks);
   }
   if (options.printFullSum) {
-    printFullSum(ranks, minDif);
+    printFullSum(ranks, deviation);
   }
   if (options.printHeightSum) {
-    printHeightSum(ranks, minDif);
+    printHeightSum(ranks, deviation);
   }
   if (options.printGen) {
     printGen();
@@ -135,14 +146,14 @@ void fullPrint(Options options, int *ranks, int minDif, int gen, int cnt) {
 }
 
 // returns the lowest difference between heights and ranks the individuals
-int rankGen(int *ranks) {
-  int temp;
-  int *rankedDifs = malloc(popSize * sizeof(int));
+double rankGen(int *ranks) {
+  double temp;
+  double *rankedDifs = malloc(popSize * sizeof(double));
   for (int i = 0; i < popSize; i++) {
     ranks[i] = i;
   }
   for (int i = 0; i < popSize; i++) {
-    rankedDifs[i] = heightDif(generation[i]);
+    rankedDifs[i] = fitness(generation[i]);
   }
   for (int i = 0; i < popSize - 1; i++) {
     for (int j = i + 1; j < popSize; j++) {
@@ -197,20 +208,24 @@ void readInput(int argc, char **argv) {
 }
 
 // fill a chromosome with random values
-int introduce(bool *chromosome) {
+void introduce(int *chromosome) {
   for (int g = 0; g < chromlength; g++) {
     chromosome[g] = towerRand();
   }
 }
 
 // mutates 1 randome gene in a chromosome
-int mutate(bool *chromosome) {
+void mutate(int *chromosome) {
   int idx = rand() % chromlength;
-  chromosome[idx] = towerRand();
+  int rndm;
+  do {
+    rndm = towerRand();
+  } while (rndm == chromosome[idx]);
+  chromosome[idx] = rndm;
 }
 
 // after a random index, swap the values of both chromosomes
-int crossOver(bool *chrom1, bool *chrom2) {
+void crossOver(int *chrom1, int *chrom2) {
   bool temp;
   int start = (rand() % (chromlength - 1)) + 1;
   for (int i = start; i < chromlength; i++) {
@@ -219,8 +234,8 @@ int crossOver(bool *chrom1, bool *chrom2) {
     chrom2[i] = temp;
   }
 }
-
-int halfCrossOver(bool *target, bool *origin) {
+// crosOver() but the origin doesn't get changed
+void halfCrossOver(int *target, int *origin) {
   int start = (rand() % (chromlength - 1)) + 1;
   for (int i = start; i < chromlength; i++) {
     target[i] = origin[i];
@@ -228,18 +243,18 @@ int halfCrossOver(bool *target, bool *origin) {
 }
 
 // returns the height of T or F within a chromosome
-int heightOfTower(bool *chromosome, bool b) {
+int heightOfTower(int *chromosome, int t) {
   int height = 0;
   for (int i = 0; i < chromlength; i++) {
-    if (chromosome[i] == b) {
+    if (chromosome[i] == t) {
       height += blocks[i];
     }
   }
   return height;
 }
 
-// returns the height difference of a chromosome
-int heightDif(bool *chromosome) {
+// returns the height difference of a chromosome, assumes 2 towers
+int heightDif(int *chromosome) {
   int dif = 0;
   for (int i = 0; i < chromlength; i++) {
     if (chromosome[i]) {
@@ -251,35 +266,33 @@ int heightDif(bool *chromosome) {
   return abs(dif);
 }
 
-void printFullSum(int *ranks, int minDif) {
-  int first = 1;
-  printf("T set:\n");
-  for (int i = 0; i < chromlength; i++) {
-    if (generation[ranks[0]][i]) {
-      if (first) {
-        first = 0;
-        printf("%d", blocks[i]);
-      } else {
-        printf("+%d", blocks[i]);
+void printFullSum(int *ranks, double deviation) {
+  int first, sum;
+  for (int s = 0; s < towers; s++) {
+    sum = 0;
+    first = 1;
+    printf("Set %c:\n", toBase64(s));
+    for (int b = 0; b < chromlength; b++) {
+      if (generation[ranks[0]][b] == s) {
+        if (first) {
+          first = 0;
+          printf("%d", blocks[b]);
+        } else {
+          printf("+%d", blocks[b]);
+        }
+        sum += blocks[b];
       }
     }
+    printf("=%d\n", sum);
   }
-  printf("=%d\nF set:\n", heightOfTower(generation[ranks[0]], true));
-  for (int i = 0; i < chromlength; i++) {
-    if (!generation[ranks[0]][i]) {
-      printf("-%d", blocks[i]);
-    }
-  }
-  printf("=-%d\nabs(%d - %d) = %d\n",
-         heightOfTower(generation[ranks[0]], false),
-         heightOfTower(generation[ranks[0]], true),
-         heightOfTower(generation[ranks[0]], false), minDif);
+  printf("Total deviation from optimal(%.2f): %.2f\n",
+         (double)totalHeight / (double)towers, deviation);
 }
 
 void printChrom(int *ranks) {
   printf("Chromosome: ");
   for (int i = 0; i < chromlength; i++) {
-    printf("%d", generation[ranks[0]][i]);
+    printf("%c", toBase64(generation[ranks[0]][i]));
   }
   printf("\n");
 }
