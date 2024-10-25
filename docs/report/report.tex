@@ -48,8 +48,13 @@
 \maketitle
 
 \section{Problem description}
-Given a number of weighted values, find out how to distribute the values into parts as evenly as possible.
+Given a multiset $S$ of $n$ integers, divide the values into $k$ parts as evenly as possible.
+This is the multiway number partitioning problem, also known as the identical-machines scheduling problem.
 \section{Problem analysis}
+As has been communicated there is no way to solve the partition problem deterministically as a polynomial function of complexity. This means that for a large input, it becomes practically impossible to produce an output.
+As a result, a probabilistic method is preferred.
+
+
 We interpret the question as follows: Two line segments intersect if they have precisely one common point that is not an end-point of any of the segments.
 This interpretation is motivated by the following statements:
 \begin{itemize}

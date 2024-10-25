@@ -17,8 +17,7 @@
 #define chromlength numBlocks
 #define popSize 10
 
-const int towerAmount = 12;
-// gets set at initialize()
+int towerAmount = 2;
 int totalHeight;
 
 int blocks[numBlocks];
@@ -51,8 +50,7 @@ int towerRand();
 double deviation(int *);
 
 int main(int argc, char **argv) {
-  // default options
-  Options options = {1, 1, 0, 0, 1};
+  Options options = {1, 1, 0, 0, 1}; // default options
   int *ranks = malloc(popSize * sizeof(int));
   srand(time(NULL));
   readInput(argc, argv, &options);
@@ -96,8 +94,8 @@ char toBase64(int n) {
       "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ+/"};
   return base64[n % 64];
 }
-// returns the deviation of a chromosome, for every doubling of towers, the max
-// deviation increases by 50%, the lower the deviation the higher the fitness
+// returns the average deviation of a chromosome, for every doubling of towers,
+// the lower the deviation the higher the fitness
 double deviation(int *chromosome) {
   int *towers = calloc(sizeof(int), towerAmount);
   double optimum = (double)totalHeight / (double)towerAmount;
@@ -171,7 +169,7 @@ double rankGen(int *ranks) {
 void printGen() {
   for (int i = 0; i < popSize; i++) {
     for (int j = 0; j < chromlength; j++) {
-      printf("%d ", generation[i][j]);
+      printf("%c", toBase64(generation[i][j]));
     }
     printf("\n");
   }
@@ -199,8 +197,10 @@ void readInput(int argc, char **argv, Options *options) {
       options->printGen = true;
     }
     if (!strcmp(argv[a], "rand")) {
+      // instead of determining the output yourself, let every block have a
+      // height of min-max
       randarg = 1;
-      int randMin = atoi(argv[a + 1]), randMax = atoi(argv[a + 2]);
+      int randMin = atoi(argv[a + 1]), randMax = atoi(argv[a + 2]) + 1;
 
       for (int i = 0; i < numBlocks; i++) {
         blocks[i] = (rand() % (randMax - randMin)) + randMin;
