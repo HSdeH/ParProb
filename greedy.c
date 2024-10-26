@@ -6,13 +6,14 @@
 #include <limits.h>
 
 #define AMOUNT 100
-#define K 3
 
 int compare(const void *a, const void *b) { return (*(int *)b - *(int *)a); }
 
 int main() {
+  int subsetc;
+  scanf("%d", &subsetc);
   int *weights = malloc(sizeof(int) * AMOUNT);
-  int *sums = calloc(sizeof(int), K);
+  int *sums = calloc(sizeof(int), subsetc);
 
   for (int i = 0; i < AMOUNT; i++) {
     scanf("%d ", &weights[i]);
@@ -22,7 +23,7 @@ int main() {
   int smallestIdx;
   for (int i = 0; i < AMOUNT; i++) {
     smallestIdx = 0;
-    for (int j = 1; j < K; j++) {
+    for (int j = 1; j < subsetc; j++) {
       if (sums[smallestIdx] > sums[j]) {
         smallestIdx = j;
       }
@@ -30,7 +31,7 @@ int main() {
     sums[smallestIdx] += weights[i];
   }
   
-  for (int i = 0; i < K; i++) {
+  for (int i = 0; i < subsetc; i++) {
     printf("%d: %d\n",i,sums[i]);
   }
   free(sums);

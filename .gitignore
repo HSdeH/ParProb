@@ -1,1 +1,9 @@
 *.out
+.vscode
+docs/report/*.synctex.gz
+docs/report/*.log
+docs/report/*.fls
+docs/report/*.fdb_latexmk
+docs/report/*.aux
+greedy
+rand/*

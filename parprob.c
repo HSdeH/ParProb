@@ -12,23 +12,25 @@
 #include <time.h>
 
 // #define DEBUG
-#define MAX_COUNT 10000
-#define numBlocks 20
+#define numBlocks 5
 #define chromlength numBlocks
 #define popSize 10
 
-int towerAmount = 2;
+int maxDrift = 10000;
+int subsets;
 int totalHeight;
-
 int blocks[numBlocks];
 int generation[popSize][chromlength];
 
 typedef struct {
+  bool defaultOptions;
   bool printChrom;
   bool printFullSum;
   bool printHeightSum;
   bool printGen;
   bool printGenIts;
+  bool printTime;
+  bool improvement;
 } Options;
 
 char toBase64(int);
@@ -39,7 +41,7 @@ void crossOver(int *, int *);
 int heightOfTower(int *, int);
 int heightDif(int *);
 void initialize();
-void fullPrint(Options *, int *, double, int, int);
+void fullPrint(Options *, int *, double, int, int, int);
 void printGen();
 void printChrom(int *);
 void printHeightSum(int *, int);
@@ -48,27 +50,28 @@ double rankGen(int *);
 void halfCrossOver(int *, int *);
 int towerRand();
 double deviation(int *);
+void printTime(clock_t);
 
 int main(int argc, char **argv) {
-  Options options = {1, 1, 0, 0, 1}; // default options
-  int *ranks = malloc(popSize * sizeof(int));
+  Options options = {1};  // options, mostly for printing results
   srand(time(NULL));
   readInput(argc, argv, &options);
   initialize();
-
-  double oldDev = -1;
-  double newDev;
-  int cnt = 0;
-  int gen = 0;
-
+  int *ranks = malloc(popSize * sizeof(int));
+  double oldDev = -1, newDev;
+  int gen = 0, drift = 0;
+  clock_t start = clock(), end;
   // main loop
   do {
     // rank the individuals and get the lowest deviation
     newDev = rankGen(ranks);
-    if (oldDev == newDev) {
-      cnt++;
+    if (oldDev == newDev) { // as our implementation of the genetic algorithm is elitist, checking for equality means checking if it's better
+      drift++;
     } else {
-      cnt = 0;
+      if (options.improvement || options.defaultOptions) {
+        printf("Gen %-7d: %.3f\n", gen, newDev);
+      }
+      drift = 0;
       oldDev = newDev;
     }
     // change the new generation
@@ -79,11 +82,11 @@ int main(int argc, char **argv) {
       halfCrossOver(generation[ranks[i]], generation[ranks[0]]);
     }
     gen++;
-  } while ((cnt < MAX_COUNT) &&
+  } while ((drift < maxDrift) &&
            (newDev != 0));  // continue until a solution has been found or
                             // nothing has been found for a while
-
-  fullPrint(&options, ranks, newDev, gen, cnt);
+  end = clock();
+  fullPrint(&options, ranks, newDev, gen, drift, end - start);
   free(ranks);
   return 0;
 }
@@ -96,35 +99,36 @@ char toBase64(int n) {
 }
 // returns the average deviation of a chromosome, for every doubling of towers,
 // the lower the deviation the higher the fitness
+// alternate: largest tower - optimum
 double deviation(int *chromosome) {
-  int *towers = calloc(sizeof(int), towerAmount);
-  double optimum = (double)totalHeight / (double)towerAmount;
+  int *towers = calloc(sizeof(int), subsets);
+  double optimum = (double)totalHeight / (double)subsets;
   double deviation = 0.0;
   // build every tower
   for (int g = 0; g < chromlength; g++) {
     towers[chromosome[g]] += blocks[g];
   }
   // then add up the deviation from the optimum for every tower
-  for (int t = 0; t < towerAmount; t++) {
+  for (int t = 0; t < subsets; t++) {
     deviation += fabs((double)towers[t] - optimum);
   }
   free(towers);
-  return deviation / towerAmount;
+  return deviation / subsets;
 }
 // picks a random tower, divide RAND_MAX by towers and divide
 // rand() by that to get a random number, as this method has a low chance of
 // getting towers, in case this happens the tower index decrements
 int towerRand() {
-  int tower = rand() / (RAND_MAX / towerAmount);
-  return tower == towerAmount ? tower - 1 : tower;
+  int tower = rand() / (RAND_MAX / subsets);
+  return tower == subsets ? tower - 1 : tower;
 }
 // print final results
-void fullPrint(Options *options, int *ranks, double deviation, int gen,
-               int cnt) {
-  if (options->printChrom) {
+void fullPrint(Options *options, int *ranks, double deviation, int gen, int cnt,
+               int time) {
+  if (options->printChrom || options->defaultOptions) {
     printChrom(ranks);
   }
-  if (options->printFullSum) {
+  if (options->printFullSum || options->defaultOptions) {
     printFullSum(ranks, deviation);
   }
   if (options->printHeightSum) {
@@ -133,9 +137,17 @@ void fullPrint(Options *options, int *ranks, double deviation, int gen,
   if (options->printGen) {
     printGen();
   }
-  if (options->printGenIts) {
+  if (options->printGenIts || options->defaultOptions) {
     printf("Generation: %d; Iteration: %d\n", gen - cnt - 1, gen - 1);
   }
+  if (options->printTime || options->defaultOptions) {
+    printTime(time);
+  }
+}
+
+void printTime(clock_t time) {
+  int s = ((double)(time) / CLOCKS_PER_SEC);
+  printf("%.1fm; %ds; %dt\n", (double)s / 60, s, (int)time);
 }
 
 // returns the lowest difference between heights and ranks the individuals
@@ -189,27 +201,57 @@ void initialize() {
 
 // reads heights or generates them
 void readInput(int argc, char **argv, Options *options) {
-  // implement something that reads a file later, and a randomly filled one
-  int randarg = 0;
+  int input = 0;
   int a = 1;
   while (a != argc) {
     if (!strcmp(argv[a], "-pg")) {
       options->printGen = true;
-    }
-    if (!strcmp(argv[a], "rand")) {
+      options-> defaultOptions = false;
+    } else if (!strcmp(argv[a], "-t")) {
+      options->printTime = true;
+      options-> defaultOptions = false;
+    } else if (!strcmp(argv[a], "rand")) {
       // instead of determining the output yourself, let every block have a
       // height of min-max
-      randarg = 1;
-      int randMin = atoi(argv[a + 1]), randMax = atoi(argv[a + 2]) + 1;
-
+      char path[20];
+      snprintf(path, sizeof(path), "rand/%d.in", (int)time(NULL));
+      FILE *file = fopen(path, "w");
+      if (file == NULL) {
+        printf("failure to create %s\n", path);
+        exit(EXIT_FAILURE);
+      } else {
+        printf("created file %s\n", path);
+      }
+      subsets = atoi(argv[a + 1]);
+      fprintf(file, "%d\n", subsets);
+      input = 1;
+      int randMin = atoi(argv[a + 2]), randMax = atoi(argv[a + 3]) + 1;
       for (int i = 0; i < numBlocks; i++) {
         blocks[i] = (rand() % (randMax - randMin)) + randMin;
+        fprintf(file, "%d ", blocks[i]);
       }
-      a = a + 2;
+      fclose(file);
+      a = a + 3;
+    } else if (!strcmp(argv[a], "-d")) {
+      maxDrift = atoi(argv[a + 1]);
+      a++;
+    } else {
+      input = 1;
+      FILE *input = fopen(argv[a], "r");
+      if (input == NULL) {
+        printf("failure to read file\n");
+        exit(EXIT_FAILURE);
+      }
+      fscanf(input, "%d ", &subsets);
+      for (int i = 0; i < numBlocks; i++) {
+        fscanf(input, "%d ", &blocks[i]);
+      }
+      fclose(input);
     }
     a++;
   }
-  if (!randarg) {
+  if (!input) {
+    (void)scanf("%d ", &subsets);
     for (int i = 0; i < numBlocks; i++) {
       (void)scanf("%d ", &blocks[i]);
     }
@@ -277,7 +319,7 @@ int heightDif(int *chromosome) {
 
 void printFullSum(int *ranks, double deviation) {
   int first, sum;
-  for (int s = 0; s < towerAmount; s++) {
+  for (int s = 0; s < subsets; s++) {
     sum = 0;
     first = 1;
     printf("Set %c:\t", toBase64(s));
@@ -293,11 +335,10 @@ void printFullSum(int *ranks, double deviation) {
       }
     }
     printf("=%d; dev: %.3f\n", sum,
-           (double)sum - ((double)totalHeight / (double)towerAmount));
+           (double)sum - ((double)totalHeight / (double)subsets));
   }
   printf("Optimal: %.3f; Average deviation: %.3f; Total deviation: %.3f\n",
-         (double)totalHeight / (double)towerAmount, deviation,
-         deviation * towerAmount);
+         (double)totalHeight / (double)subsets, deviation, deviation * subsets);
 }
 
 void printChrom(int *ranks) {

@@ -38,7 +38,7 @@
     backgroundcolor = \color{Gray}
 }
 
-\title{A Genetic Algorithm for the Partition Problem}
+\title{A Genetic Algorithm for the Number Partitioning Problem}
 \author{H.S. de Hoop \& N. Trigonis\\
         H.S.de.Hoop@student.rug.nl \& N.Trigonis@student.rug.nl}
 %------------------------------------------------------------%
@@ -48,34 +48,70 @@
 \maketitle
 
 \section{Problem description}
-Given a multiset $S$ of $n$ integers, divide the values into $k$ parts as evenly as possible.
-This is the multiway number partitioning problem, also known as the identical-machines scheduling problem.
+Given a multiset $S$ of $n$ integers, divide the values into $k$ subsets as evenly as possible.
+This is the multiway number partitioning problem.
 \section{Problem analysis}
-As has been communicated there is no way to solve the partition problem deterministically as a polynomial function of complexity. This means that for a large input, it becomes practically impossible to produce an output.
-As a result, a probabilistic method is preferred.
 
 
-We interpret the question as follows: Two line segments intersect if they have precisely one common point that is not an end-point of any of the segments.
-This interpretation is motivated by the following statements:
+As a well known NP-hard problem, time complexity for exact, deterministic solutions is exponential.
+Since for large inputs this problem can take incredibly long, approximate solution algorithms have been developed instead.
+A simple but good one of those is the greedy heuristic algorithm, where set $S$ gets sorted from largest to smallest value and then gets distributed from left to right to the subset with the smallest sum of values.
+This algorithm is deterministic and solves the problem quite fast, however it is not always accurate.
+In an attempt to further explore possible approximate solutions, we have decided to take on the probabilistic approach and develop a genetic algorithms.
+What distinguishes this solution from others is that it finds an approximate solution by stochastic means, which means it could possibly find a perfect solution where a deterministic solution always fails.
+\newline
+Fundamental components for the problem:
 \begin{itemize}
-\item Two line segments intersect if and only if $A$ and $B$ lay on different sides of the line segment trough $P$ and $Q$. Moreover, $P$ and $Q$ lay on different sides of the line segment through $A$ and $B$.
-\item All cases in which multiple points are on both line segments (i.e. overlapping segments) are categorized as not intersecting.
+  \item A set $S$ containing $n$ integers.
 \end{itemize}
-From the equation for a line $y = \frac{\Delta y}{\Delta x}\cdot x + c$ we conclude
-$$ y\cdot \Delta x - x \cdot \Delta y - c = 0
-$$ 
-The advantage of the latter form is that lines parallel to the $y$-axis can be written in the same way as any other line.
-For the line trough $A$ and $B$ we find: 
-$\Delta x = x_B - x_A$, $\Delta y = y_B - y_A$ and $c = y_A \cdot \Delta x - x_A \cdot \Delta y$.
-The line trough $A$ and $B$ splits the plane into two halves. Points on one side give a positive result and points on the other side a negative result for the following expression:
-\begin{equation}\label{exprHalfPlane}
-y \cdot \Delta x - x \cdot \Delta y - c
-\end{equation}
-Thus, two points are located in different half planes if one yields a positive and the other a negative result, when we evaluate expression (\ref{exprHalfPlane}) for both points.
-We can simplify this conclusion: \\[2mm]
-\centerline{\it two points are in different half planes if the product of the expressions (\ref{exprHalfPlane}) is negative.}
+
+Components needed for the genetic algorithm:
+\begin{itemize}
+  \item A chromosome, consisting of an array of integers indicating what subset it belongs to.
+  \item Various functions for alterating the chromosome, such as mutation, crossover, etc.
+  \item A way to determine fitness, and a selection mechanism.
+\end{itemize}
+
+Possible options for fitness:
+\begin{itemize}
+  \item The average deviation of all towers from the optimally distributed height.
+  \item 
+\end{itemize}
+
+Terminating conditions:
+\begin{itemize}
+\item When the difference between all subsets is none, and thus a perfect solution has been found.
+\end{itemize}
 
 \section{Design}
+Before everything else, seed the random number generator with the current Unix time.
+Read the input; first the number $k$ of subsets and the amount $n$ of integers in the set, into {\tt subsets} and {\tt numBlocks} respectively.
+Then set the value of {\tt chromLength} to {\tt numBlocks} and allocate memory to {\tt **generation} and {\tt *blocks}.
+Call the initialize function. This calculates the total sum of the integers and then also introduces a full fresh generation.
+Now after creating variables {\tt gen}, {\tt drift}, {\tt oldDev}, and {\tt newDev}, the main loop can start.
+\newline 
+\newline
+When reading input, these options are also processed:
+\begin{itemize}
+  \item Input can be passed in through standard input or a file by calling it as an argument, or it can be generated randomly with the argument rand [subsets] [numBlocks] [min] [max]
+  \item drift can be set at the beginning of the program with -d x, and popSize with -p x.
+  \item Various print options: -pg; print the final generation, -t; print the elapsed time, 
+  \item Option -g, first try the greedy heuristic, if it hasn't found an exact solution, make its result an individual in the generation and then start the genetic loop.
+\end{itemize}
+The main loop of the program can be considered the genetic algorithm.
+First, the generation gets ranked and the lowest average deviation gets stored in {\tt newDev}.
+If {\tt newDev} is better than the old deviation {\tt oldDev}, {\tt oldDev} gets set to {\tt newDev} and {\tt drift} resets to 0.
+Else, {\tt drift} increments.
+Now we are at the selection process of the algorithm.
+As our implementation is elitist, the first ranked individual never gets altered.
+At first, selection is quite strict, but as {\tt drift} increases, selection gets more and more permissive, increasing mutation, and individuals even get replaced by new randomly generated ones.
+This is to increase diversity as less and less improvements get found over time, as the chromosome might settle into local optima.
+After the selection process, the loop ends, and if {\tt newDev} has become 0, or {\tt drif} has become {\tt maxDrif} it terminates.
+\newline
+\newline
+Being a probabilistic algorithm, multiple auxiliary functions were written to analyze the results.
+\newline
+\newline
 First the points $A$, $B$, $P$ and $Q$ are read from the standard input and stored (in the variables {\tt xA}, {\tt yA}, {\tt xB}, {\tt yB}, {\tt xP}, {\tt yP}, {\tt xQ}, and {\tt yQ}). 
 Next, the parameters of the line through $A$ and $B$ are computed ({\tt deltax}, {\tt deltay}, and {\tt c}). Using these, we determine whether $P$ and $Q$ are split up by the line trough $A$ and $B$ (stored in {\tt PQdivided}).
 
@@ -88,7 +124,7 @@ Finally the answer is computed from the variables  {\tt PQdivided} and {\tt ABdi
 It is presented to the user by printing it on the standard output.
 
 \section{Program code}
-\begin{lstlisting}[style = code, title = intersect.c]
+\begin{lstlisting}[style = code, title = parprob.c]
 #include <stdio.h>
 #include <stdlib.h>
 
