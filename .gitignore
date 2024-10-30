@@ -6,4 +6,4 @@ docs/report/*.fls
 docs/report/*.fdb_latexmk
 docs/report/*.aux
 greedy
-rand/*
+#rand/*
