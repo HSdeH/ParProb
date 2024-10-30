@@ -5,23 +5,23 @@
 #include <stdlib.h>
 #include <limits.h>
 
-#define AMOUNT 100
-
 int compare(const void *a, const void *b) { return (*(int *)b - *(int *)a); }
 
 int main() {
-  int subsetc;
+  int subsetc, amount;
   scanf("%d", &subsetc);
-  int *weights = malloc(sizeof(int) * AMOUNT);
+  scanf("%d", &amount);
+  
+  int *weights = malloc(sizeof(int) * amount);
   int *sums = calloc(sizeof(int), subsetc);
 
-  for (int i = 0; i < AMOUNT; i++) {
+  for (int i = 0; i < amount; i++) {
     scanf("%d ", &weights[i]);
   }
-  qsort(weights, AMOUNT, sizeof(int), compare);
+  qsort(weights, amount, sizeof(int), compare);
 
   int smallestIdx;
-  for (int i = 0; i < AMOUNT; i++) {
+  for (int i = 0; i < amount; i++) {
     smallestIdx = 0;
     for (int j = 1; j < subsetc; j++) {
       if (sums[smallestIdx] > sums[j]) {
