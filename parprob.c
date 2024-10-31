@@ -13,7 +13,6 @@
 #include <string.h>
 #include <time.h>
 
-// #define DEBUG
 int popSize = 10;
 int maxDrift = 10000;
 int subsets;
@@ -52,7 +51,10 @@ int main(int argc, char **argv) {
       mutationFactor = (double)drift / (double)maxDrift;
       // change the new generation
       for (int i = 1; i < popSize; i++) {
-         recombine(generation[ranks[i]], generation[ranks[0]]);
+         if (drift == 0) {
+         replace(generation[ranks[i]], generation[ranks[0]]);
+         }
+         //recombine(generation[ranks[i]], generation[ranks[0]]);
          mutate(generation[ranks[i]],
                 0.2 * mutationFactor);  // this allows the mutation to increase
                                         // to 25% of genes as drift increases
@@ -151,7 +153,7 @@ void readFile(FILE *input) {
    }
 }
 
-// fills all chromosomes of the first generation
+// fills all chromosomes of the first generation, and initializes values
 void initialize() {
    int total = 0;
    chromlength = numBlocks;
@@ -207,7 +209,6 @@ double rankGen(int *ranks) {
 
 // returns the average deviation of a chromosome,
 // the lower the deviation the higher the fitness
-// alternate: largest tower - optimum
 double deviation(int *chromosome) {
    int *towers = calloc(sizeof(int), subsets);
    double optimum = (double)totalHeight / (double)subsets;
@@ -224,7 +225,7 @@ double deviation(int *chromosome) {
    return deviation / subsets;
 }
 
-// a uniform crossOver;
+// a uniform crossOver, might be a bit slower, forces half of origin into target
 void recombine(int *target, int *origin) {
    for (int g = 0; g < chromlength; g++) {
       if (rand() > RAND_MAX / 2) {
@@ -263,6 +264,13 @@ void mutate(int *chromosome, double factor) {
 void introduce(int *chromosome) {
    for (int g = 0; g < chromlength; g++) {
       chromosome[g] = towerRand();
+   }
+}
+
+// replace target chromosome with origin
+void replace(int *target, int *origin) {
+   for (int g = 0; g < chromlength; g++) {
+      target[g] = origin[g];
    }
 }
 
@@ -318,11 +326,13 @@ void printFullSum(int *ranks, double deviation) {
           (double)totalHeight / (double)subsets, deviation, min, max);
 }
 
+// print the elapsed time in :mm:ss and ticks
 void printTime(clock_t time) {
    int s = ((double)(time) / CLOCKS_PER_SEC);
    printf(":%02d:%02d     %dt\n", s / 60, s % 60, (int)time);
 }
 
+// print the all the individual chromosomes of the current generation
 void printGen() {
    for (int i = 0; i < popSize; i++) {
       for (int j = 0; j < chromlength; j++) {
@@ -331,7 +341,7 @@ void printGen() {
       printf("\n");
    }
 }
-
+// print a chromosome
 void printChrom(int *ranks) {
    printf("Chromosome: ");
    for (int i = 0; i < chromlength; i++) {

@@ -34,5 +34,5 @@ void printTime(clock_t);
 void greedy(int *);
 void recombine(int *, int *);
 void readFile(FILE *);
-
+void replace(int *, int *);
 #endif
