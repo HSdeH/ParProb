@@ -31,10 +31,13 @@ int main(int argc, char **argv) {
    }
    int *ranks = malloc(popSize * sizeof(int));
    double oldDev = -1, newDev, mutationFactor;
-   int gen = 0, drift = 0;
+   int gen = 0, drift = 0, winner;
    clock_t start = clock(), end;
    // main loop
-   do {
+   newDev = rankGen(ranks);
+   while ((drift < maxDrift) &&
+          (newDev * numBlocks > 1.0)) {  // continue until a solution has been
+                                         // found or maxDrift has been reached
       // rank the individuals and get the lowest deviation
       newDev = rankGen(ranks);
       if (oldDev == newDev) {
@@ -50,19 +53,19 @@ int main(int argc, char **argv) {
       }
       mutationFactor = (double)drift / (double)maxDrift;
       // change the new generation
+      for (int i = popSize / 2; i < popSize; i++) {
+         winner = (rand() > RAND_MAX / 3)
+                      ? 0
+                      : 1;  // pick either the best or the second best
+         recombine(generation[ranks[i]], generation[ranks[winner]]);
+      }
       for (int i = 1; i < popSize; i++) {
-         if (drift == 0) {
-         replace(generation[ranks[i]], generation[ranks[0]]);
-         }
-         //recombine(generation[ranks[i]], generation[ranks[0]]);
          mutate(generation[ranks[i]],
-                0.2 * mutationFactor);  // this allows the mutation to increase
+                2 * mutationFactor);  // this allows the mutation to increase
                                         // to 25% of genes as drift increases
       }
       gen++;
-   } while ((drift < maxDrift) &&
-            (newDev != 0));  // continue until a solution has been found or
-                             // maxDrift has been reached
+   }
    end = clock();
    // print everything in options
    fullPrint(&options, ranks, newDev, gen, drift, end - start);
@@ -95,10 +98,10 @@ void readInput(int argc, char **argv, Options *options) {
          a++;
       } else if (!strcmp(argv[a], "rand")) {
          if (!input) {
-            // instead of determining the output yourself, let every block have
-            // the number of subsets, number of blocks, and a block height of
-            // min-max also saves it to a /rand folder, if it doesn't exit,
-            // fails
+            // instead of giving the input yourself, generate them randomly with
+            // as arguments the number of subsets, number of blocks, min block
+            // heigh, and max block height, also saves it to a /rand folder, if
+            // it doesn't exit, fails
             input = true;
             char path[20];
             snprintf(path, sizeof(path), "rand/%d.in", (int)time(NULL));
@@ -248,11 +251,11 @@ void crossOver(int *chrom1, int *chrom2) {
 
 // mutates 5% of genes by default, changed yes by factor
 void mutate(int *chromosome, double factor) {
-   int idx = rand() % chromlength;
-   int rndm;
+   int idx ,rndm, muts;
    // mutate 5% of the genes, multiplied by factor, and at least 1
-   int mutations = (int)((0.05 + factor) * (double)chromlength) + 1;
+   int mutations =  1 + factor;
    for (int i = 0; i < mutations; i++) {
+      idx = rand() % chromlength;
       do {
          rndm = towerRand();
       } while (rndm == chromosome[idx]);
@@ -287,7 +290,7 @@ void fullPrint(Options *options, int *ranks, double deviation, int gen, int cnt,
       printGen();
    }
    if (options->printGenIts || options->defaultOptions) {
-      printf("Generation: %d; Iteration: %d\n", gen - cnt - 1, gen - 1);
+      printf("Generation: %d; Iteration: %d\n", gen - cnt, gen);
    }
    if (options->printTime || options->defaultOptions) {
       printTime(time);
